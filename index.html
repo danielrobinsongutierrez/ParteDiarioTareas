@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parte Diario de Tareas - Gestor Operativo</title>
+    <!-- Librerías de Excel / XML / PDF -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --sidebar-bg: #0f172a;
+            --card-bg: #ffffff;
+            --accent-color: #2563eb;
+            --accent-hover: #1d4ed8;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --radius: 10px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            background-color: var(--bg-primary);
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top Navbar Header */
+        #top-header {
+            background-color: #1e293b;
+            color: #ffffff;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        #top-header .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #top-header h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: #60a5fa;
+            font-weight: 700;
+        }
+
+        #top-header .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        #app-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar reorganizado */
+        #sidebar {
+            width: 340px;
+            background-color: var(--sidebar-bg);
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius);
+            padding: 14px;
+        }
+
+        .sidebar-title {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #main-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        h2, h3, h4 { margin: 0 0 10px 0; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        input, select, textarea, button {
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+            margin-bottom: 8px;
+            font-size: 0.88rem;
+            transition: all 0.2s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        button:hover { opacity: 0.92; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+        button.btn-success { background-color: var(--success); }
+        button.btn-danger { background-color: var(--danger); }
+        button.btn-secondary { background-color: #64748b; }
+        button.btn-warning { background-color: var(--warning); color: #fff; }
+
+        /* Estilos de Listas Checkbox en Sidebar */
+        .checkbox-select-container {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+            background: #020617;
+            border-radius: 6px;
+            padding: 6px;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            font-size: 0.8rem;
+            color: #f1f5f9;
+            cursor: pointer;
+            border-bottom: 1px solid #1e293b;
+            border-radius: 4px;
+        }
+
+        .checkbox-item:hover {
+            background-color: #1e293b;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .selector-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .selector-controls button {
+            width: auto;
+            padding: 2px 8px;
+            font-size: 0.72rem;
+            margin-bottom: 0;
+        }
+
+        .search-mini-input {
+            margin-bottom: 6px;
+            padding: 6px 10px;
+            font-size: 0.78rem;
+            background: #020617;
+            color: #fff;
+            border: 1px solid #334155;
+        }
+
+        .search-mini-input::placeholder {
+            color: #64748b;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            background: #1e293b;
+            border: 1px dashed #475569;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .cuadrilla-rendicion-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            padding: 18px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .cuadrilla-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            border: 1px solid var(--border-color);
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            color: white;
+            background-color: #64748b;
+            font-weight: 700;
+            display: inline-block;
+            letter-spacing: 0.03em;
+        }
+
+        .badge.RECLAMO { background-color: var(--danger); }
+        .badge.OS { background-color: #7c3aed; }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 5px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th { 
+            background: #0f172a; 
+            color: #ffffff; 
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: var(--radius);
+            width: 520px;
+            max-width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-md);
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+        }
+
+        .form-manual-container {
+            display: none;
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            padding: 18px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .form-grid-full {
+            grid-column: span 2;
+        }
+
+        .multi-task-container {
+            max-height: 280px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            background: #ffffff;
+            margin-bottom: 14px;
+        }
+
+        .multi-task-group {
+            margin-bottom: 12px;
+        }
+
+        .multi-task-group-title {
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: #1e293b;
+            background: #f1f5f9;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .multi-task-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.82rem;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .multi-task-item:hover {
+            background-color: #f8fafc;
+        }
+
+        .multi-task-item input[type="checkbox"] {
+            width: auto;
+            margin: 3px 0 0 0;
+            cursor: pointer;
+        }
+
+        .section-header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .assign-bar-container {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header / Navbar Principal -->
+    <div id="top-header">
+        <div class="brand">
+            <span style="font-size: 1.4rem;">📋</span>
+            <h2>Parte Diario de Tareas</h2>
+            <span style="font-size: 0.78rem; background: #334155; color: #94a3b8; padding: 3px 8px; border-radius: 12px;">Gestor Operativo</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn-secondary" onclick="abrirModalConfig()">⚙️ Configuración Base</button>
+            <button class="btn-warning" onclick="confirmarNuevoParte()">🔄 Nuevo Parte (Iniciar Jornada)</button>
+            <button class="btn-success" onclick="exportarJornadaEstilizada()">📄 Exportar Rendición (.xlsx)</button>
+        </div>
+    </div>
+
+    <!-- Layout Principal -->
+    <div id="app-layout">
+        
+        <!-- Sidebar Reorganizado -->
+        <div id="sidebar">
+            
+            <!-- Bloque 1: Carga de Archivos -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">📁 1. Importación de Datos</div>
+                <div class="file-upload-wrapper">
+                    <label style="color:#cbd5e1; font-size:0.78rem; display:block; margin-bottom:6px;">
+                        Seleccionar XML/XLS de Reclamos o Parte Exportado (.xlsx):
+                    </label>
+                    <input type="file" id="fileInput" accept=".xml, .xls, .xlsx, .csv" style="color:#fff; margin-bottom:0;">
+                </div>
+            </div>
+
+            <!-- Bloque 2: Conformación de Cuadrillas -->
+            <div class="sidebar-section" style="flex: 1; display:flex; flex-direction:column;">
+                <div class="sidebar-title">👥 2. Armar Grupo de Trabajo</div>
+                
+                <!-- Selección de Móviles -->
+                <div style="margin-bottom: 12px;">
+                    <div class="selector-controls">
+                        <label style="color:#f8fafc; font-size:0.8rem; font-weight:600;">Unidades / Móviles:</label>
+                        <button class="btn-secondary" onclick="toggleTodosCheck('chk-movil-item')">Todos</button>
+                    </div>
+                    <input type="text" id="searchMovil" class="search-mini-input" placeholder="🔍 Buscar móvil..." oninput="filtrarOpciones('chk-movil-item', this.value)">
+                    <div id="containerCheckMovil" class="checkbox-select-container"></div>
+                </div>
+
+                <!-- Selección de Operarios -->
+                <div style="margin-bottom: 12px;">
+                    <div class="selector-controls">
+                        <label style="color:#f8fafc; font-size:0.8rem; font-weight:600;">Operarios:</label>
+                        <button class="btn-secondary" onclick="toggleTodosCheck('chk-operario-item')">Todos</button>
+                    </div>
+                    <input type="text" id="searchOperario" class="search-mini-input" placeholder="🔍 Buscar operario..." oninput="filtrarOpciones('chk-operario-item', this.value)">
+                    <div id="containerCheckOperarios" class="checkbox-select-container"></div>
+                </div>
+
+                <button style="margin-top:auto;" onclick="crearCuadrilla()">➕ Crear Grupo de Trabajo</button>
+            </div>
+
+        </div>
+
+        <!-- Main Content Area -->
+        <div id="main-content">
+            
+            <!-- Panel de Tareas Pendientes -->
+            <div class="card">
+                <div class="section-header-flex">
+                    <div>
+                        <h3 style="margin:0; font-size: 1.1rem; color: var(--text-dark);">
+                            📦 Tareas Pendientes 
+                            <span style="background: #e2e8f0; color: #334155; font-size: 0.8rem; padding: 2px 8px; border-radius: 12px; margin-left: 6px;" id="totalTareas">0</span>
+                        </h3>
+                    </div>
+                    <button class="btn-secondary" style="width:auto; padding: 6px 14px; font-size:0.82rem;" onclick="toggleFormularioManual()">
+                        ➕ Agregar Tarea Manual
+                    </button>
+                </div>
+
+                <!-- Formulario de Alta Manual -->
+                <div id="formManualContainer" class="form-manual-container">
+                    <h4 style="color:#1e293b; margin-top:0;">📝 Nueva Tarea Manual</h4>
+                    <div class="form-grid">
+                        <div>
+                            <label style="font-size:0.8rem;"><strong>Categoría:</strong></label>
+                            <select id="manualTipoCat">
+                                <option value="RECLAMO">Reclamo</option>
+                                <option value="OS">Orden de Servicio (OS)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;"><strong>N° Servicio / Reclamo:</strong></label>
+                            <input type="text" id="manualId" placeholder="Ej: 134500 (Opcional)">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;"><strong>Tipo / Motivo Trabajo:</strong></label>
+                            <input type="text" id="manualMotivo" placeholder="Ej: Alta Servicio / Mover acometida">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem;"><strong>Cliente / Titular:</strong></label>
+                            <input type="text" id="manualCliente" placeholder="Nombre y Apellido">
+                        </div>
+                        <div class="form-grid-full">
+                            <label style="font-size:0.8rem;"><strong>Dirección / Localidad:</strong></label>
+                            <input type="text" id="manualDireccion" placeholder="Calle, Número, Barrio (Localidad)">
+                        </div>
+                        <div class="form-grid-full">
+                            <label style="font-size:0.8rem;"><strong>Observaciones / Detalles:</strong></label>
+                            <input type="text" id="manualDescripcion" placeholder="Detalle adicional del trabajo a realizar...">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button class="btn-success" onclick="guardarTareaManual()">Guardar e Incorporar Tarea</button>
+                        <button class="btn-secondary" style="width:auto;" onclick="toggleFormularioManual()">Cancelar</button>
+                    </div>
+                </div>
+
+                <!-- Asignación Múltiple de Tareas -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                    <label style="font-size:0.85rem; color: var(--text-muted);"><strong>Seleccionar tareas para asignación en lote:</strong></label>
+                    <button class="btn-secondary" style="width:auto; padding:3px 10px; font-size:0.75rem; margin:0;" onclick="toggleMarcarTodas()">Marcar / Desmarcar Todas</button>
+                </div>
+
+                <div id="contenedorMultiTareas" class="multi-task-container">
+                    <p style="color:#64748b; font-size:0.85rem;">No hay tareas pendientes cargadas.</p>
+                </div>
+
+                <!-- Panel de Control de Asignación Múltiple -->
+                <div class="assign-bar-container">
+                    <div style="flex:1; min-width:240px;">
+                        <label style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:4px; color:#334155;">Asignar seleccionadas a:</label>
+                        <select id="selectCuadrillaLote" style="margin:0;">
+                            <option value="">-- Seleccionar Cuadrilla --</option>
+                        </select>
+                    </div>
+                    <button class="btn-success" style="width:auto; margin:0; padding: 10px 18px;" onclick="asignarTareasSeleccionadas()">➡️ Asignar Tareas Seleccionadas</button>
+                </div>
+            </div>
+
+            <!-- Panel de Rendición y Cierre de Jornada -->
+            <div class="card">
+                <div class="section-header-flex">
+                    <h3 style="margin:0; font-size: 1.1rem; color: var(--text-dark);">📊 Rendición y Cierre por Cuadrilla</h3>
+                </div>
+                <div id="contenedorRendicionCuadrillas">
+                    <p style="color:#64748b; font-size:0.85rem;">No hay cuadrillas armadas para la jornada.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal Configuración -->
+    <div id="modalConfig" class="modal">
+        <div class="modal-content">
+            <h3>⚙️ Configuración de Recursos</h3>
+            <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 15px;">Los datos permanecen almacenados en el navegador (LocalStorage).</p>
+            
+            <hr style="border:0; border-top: 1px solid var(--border-color); margin-bottom: 15px;">
+            
+            <h4>Unidades / Móviles</h4>
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                <input type="text" id="nuevoMovilInput" placeholder="Ej: U71 AF044KY - CU EMPALMES" style="margin:0;">
+                <button style="width: auto; white-space: nowrap;" onclick="agregarMovil()">Agregar</button>
+            </div>
+            <div id="listaMovilesConfig" style="max-height: 140px; overflow-y: auto; margin-bottom: 15px;"></div>
+
+            <hr style="border:0; border-top: 1px solid var(--border-color); margin-bottom: 15px;">
+
+            <h4>Operarios / Personal</h4>
+            <div style="display:flex; gap:8px; margin-bottom:10px;">
+                <input type="text" id="nuevoOperarioInput" placeholder="Ej: Garces Rubén O." style="margin:0;">
+                <button style="width: auto; white-space: nowrap;" onclick="agregarOperario()">Agregar</button>
+            </div>
+            <div id="listaOperariosConfig" style="max-height: 140px; overflow-y: auto; margin-bottom: 15px;"></div>
+
+            <hr style="border:0; border-top: 1px solid var(--border-color); margin-bottom: 15px;">
+            <button class="btn-secondary" onclick="cerrarModalConfig()">Cerrar</button>
+        </div>
+    </div>
+
+    <script>
+        let tareasPool = [];
+        let cuadrillas = [];
+        let contadorManual = 1000;
+
+        const unidadesPredeterminadas = [
+            'U39 IWT279 - CU EMPALMES',
+            'U49 KIQ308 - CU EQUIPO',
+            'U62 AC628FA - CU FTTH',
+            'U61 AC628FB - CU FTTH',
+            'U58 AB081OQ - CU FTTH',
+            'U60 AC628FC - CU EMPALMES',
+            'U71 AF044KY - CU EMPALMES',
+            'U72 AF195YW - CU FTTH',
+            'U86 AH549JH - CU EMPALMES',
+            'U85 AH549JG - CU GCIA COMUNICACIONES'
+        ];
+
+        const operariosPredeterminados = [
+            'Facundo Ramirez',
+            'Gallardo Braian Andres',
+            'Garces Rubén O.',
+            'Giorggi Luís María',
+            'Heredia Juan Domingo',
+            'Marifil Jorge Estéban',
+            'Melo Miguel',
+            'Rubina Dardo',
+            'Silvenses Carlos',
+            'Alfaro Mario',
+            'Astigarraga Sergio',
+            'Kessel David',
+            'Lezcano Walter',
+            'Lopez Vladimir',
+            'Mardones Juan Cruz',
+            'Navarrete Emanuel Santos',
+            'Peralta Rocio',
+            'Perez Jesús'
+        ];
+
+        let unidadesGuardadas = JSON.parse(localStorage.getItem('cuadrillaops_unidades'));
+        let operariosGuardados = JSON.parse(localStorage.getItem('cuadrillaops_operarios'));
+
+        let unidadesBase = (unidadesGuardadas && unidadesGuardadas.length > 0) ? unidadesGuardadas : [...unidadesPredeterminadas];
+        let operariosBase = (operariosGuardados && operariosGuardados.length > 0) ? operariosGuardados : [...operariosPredeterminados];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarEstadoPersistido();
+            actualizarSelectoresForm();
+            renderTareasDropdown();
+        });
+
+        function guardarEstadoEnStorage() {
+            localStorage.setItem('cuadrillaops_tareasPool', JSON.stringify(tareasPool));
+            localStorage.setItem('cuadrillaops_cuadrillas', JSON.stringify(cuadrillas));
+        }
+
+        function cargarEstadoPersistido() {
+            const tareasVal = localStorage.getItem('cuadrillaops_tareasPool');
+            const cuadrillasVal = localStorage.getItem('cuadrillaops_cuadrillas');
+            if (tareasVal) tareasPool = JSON.parse(tareasVal);
+            if (cuadrillasVal) cuadrillas = JSON.parse(cuadrillasVal);
+        }
+
+        /* --- BÚSQUEDA Y SELECCIÓN EN SIDEBAR --- */
+        function filtrarOpciones(className, query) {
+            const items = document.querySelectorAll(`.${className}`);
+            const text = query.toLowerCase();
+            items.forEach(item => {
+                const parent = item.closest('label');
+                if (item.value.toLowerCase().includes(text)) {
+                    parent.style.display = 'flex';
+                } else {
+                    parent.style.display = 'none';
+                }
+            });
+        }
+
+        function toggleTodosCheck(className) {
+            const items = Array.from(document.querySelectorAll(`.${className}`)).filter(el => el.closest('label').style.display !== 'none');
+            if (items.length === 0) return;
+            const alMenosUnoDesmarcado = items.some(cb => !cb.checked);
+            items.forEach(cb => cb.checked = alMenosUnoDesmarcado);
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    if (workbook.SheetNames.includes('Rendición de Jornada') || workbook.SheetNames.includes('Rendición')) {
+                        reimportarParteAntiguo(workbook);
+                    } else {
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                        procesarDatosEntrada(jsonData);
+                        guardarEstadoEnStorage();
+                        renderTareasDropdown();
+                    }
+                } catch (err) {
+                    alert("Error al procesar el archivo: " + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        /* --- REIMPORTACIÓN DE PARTE ANTIGUO CORREGIDA --- */
+        function reimportarParteAntiguo(workbook) {
+            const sheetName = workbook.SheetNames.includes('Rendición de Jornada') ? 'Rendición de Jornada' : 'Rendición';
+            const worksheet = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+            let cuadrillaActual = null;
+
+            rows.forEach((row, index) => {
+                if (!row || row.length === 0) return;
+
+                // Filtrar valores vacíos al inicio de la fila
+                const rowCleaned = row.map(cell => String(cell || '').trim());
+                const textoFila = rowCleaned.join(' ');
+
+                // 1. Detectar banner de Cuadrilla
+                if (textoFila.includes('VF Móvil:') || textoFila.includes('VF ')) {
+                    const movilMatch = textoFila.match(/VF Móvil:\s*([^|]+)|VF\s+([^|]+)/);
+                    const operariosMatch = textoFila.match(/👥 Operarios:\s*(.+)|👥\s*(.+)/);
+
+                    const movilStr = movilMatch ? (movilMatch[1] || movilMatch[2]).trim() : 'Móvil Reimportado';
+                    const operariosStr = operariosMatch ? (operariosMatch[1] || operariosMatch[2]).trim() : 'Operarios Reimportados';
+
+                    cuadrillaActual = cuadrillas.find(c => c.movil === movilStr && c.operarios === operariosStr);
+                    if (!cuadrillaActual) {
+                        cuadrillaActual = {
+                            id: 'CUA-' + Date.now() + '-' + index + '-' + Math.floor(Math.random() * 10000),
+                            movil: movilStr,
+                            operarios: operariosStr
+                        };
+                        cuadrillas.push(cuadrillaActual);
+                    }
+                }
+                // 2. Buscar dinámicamente la posición de las columnas de la tabla de tareas
+                else {
+                    // Encontrar el índice donde está el ID de la tarea
+                    const colIndex = rowCleaned.findIndex(val => val !== '' && val !== 'Parte Diario de Tareas — Rendición y Cierre de Jornada' && val !== 'Reporte diario de tareas asignadas y estado de cierre por cuadrilla');
+                    
+                    if (colIndex !== -1) {
+                        const taskId = rowCleaned[colIndex];
+                        const colTextUpper = taskId.toUpperCase();
+
+                        // Ignorar filas de encabezado de tabla o textos vacíos/inválidos
+                        if (colTextUpper.includes('N° SERVICIO') || colTextUpper.includes('SERVICIO') || colTextUpper.includes('PARTE DIARIO') || taskId === '-' || taskId === 'undefined') {
+                            return;
+                        }
+
+                        const tipoComp = rowCleaned[colIndex + 1] || 'Reclamo - Varios';
+                        const cliente = rowCleaned[colIndex + 2] || '';
+                        const direccion = rowCleaned[colIndex + 3] || '';
+                        const estado = rowCleaned[colIndex + 4] || 'Pendiente';
+                        const comentario = rowCleaned[colIndex + 5] || '';
+
+                        let tareaExistente = tareasPool.find(t => t.id === taskId);
+                        if (!tareaExistente) {
+                            const isOS = tipoComp.toUpperCase().startsWith('OS');
+                            const motivoDetalle = tipoComp.includes('-') ? tipoComp.split('-')[1].trim() : 'Varios';
+                            
+                            tareaExistente = {
+                                id: taskId,
+                                tipo: isOS ? 'OS' : 'RECLAMO',
+                                motivoDetalle: motivoDetalle,
+                                tipoCompleto: tipoComp,
+                                cliente: cliente,
+                                direccion: direccion,
+                                descripcion: tipoComp,
+                                asignadaA: cuadrillaActual ? cuadrillaActual.id : null,
+                                estadoCierre: estado,
+                                comentarioCierre: comentario
+                            };
+                            tareasPool.push(tareaExistente);
+                        } else {
+                            if (cuadrillaActual) tareaExistente.asignadaA = cuadrillaActual.id;
+                            tareaExistente.estadoCierre = estado;
+                            tareaExistente.comentarioCierre = comentario;
+                        }
+                    }
+                }
+            });
+
+            guardarEstadoEnStorage();
+            renderTareasDropdown();
+            renderRendicionPorCuadrillas();
+
+            alert('✅ Parte antiguo reimportado correctamente. Puedes editar cuadrillas, estados y observaciones.');
+        }
+
+        function procesarDatosEntrada(data) {
+            if (!data || data.length === 0) return;
+
+            data.forEach((row, idx) => {
+                if (row['Reclamo_Real'] !== undefined || row['Reclamo'] !== undefined || row['Sector_Derivacion'] === 'EMPALMES' || row['Sector_Derivacion'] === 'FTTH') {
+                    const reclamoId = String(row['Reclamo_Real'] || row['Reclamo'] || ('REC-' + (idx + 1)));
+                    
+                    if (tareasPool.some(t => t.id === reclamoId)) return;
+
+                    let cliente = row['Razon_Social'] || row['C_Usuario'] || '';
+                    if (!cliente && row['Observaciones']) {
+                        const obs = row['Observaciones'];
+                        if (obs.includes("SOLICITA")) {
+                            cliente = obs.split("SOLICITA")[0].trim();
+                        } else {
+                            cliente = obs.substring(0, 40) + '...';
+                        }
+                    }
+                    if (!cliente) cliente = 'Cliente Sin Especificar';
+
+                    let direccion = row['Direccion'] || '';
+                    const localidad = row['Localidad'] && row['Localidad'] !== '<SD>' ? row['Localidad'] : '';
+                    if (!direccion && row['Observaciones']) {
+                        direccion = row['Observaciones'];
+                    }
+
+                    let ubicacionFinal = direccion;
+                    if (localidad) ubicacionFinal += ' (' + localidad + ')';
+
+                    const motivo = (row['Motivo'] && String(row['Motivo']).trim() !== '') ? String(row['Motivo']).trim() : 'Varios';
+                    const obs = row['Observaciones'] ? (' - ' + row['Observaciones']) : '';
+
+                    tareasPool.push({
+                        id: reclamoId,
+                        tipo: 'RECLAMO',
+                        motivoDetalle: motivo,
+                        tipoCompleto: 'Reclamo - ' + motivo,
+                        cliente: cliente,
+                        direccion: ubicacionFinal,
+                        descripcion: motivo + obs,
+                        asignadaA: null,
+                        estadoCierre: 'Pendiente',
+                        comentarioCierre: ''
+                    });
+                } 
+                else if (row['Número'] !== undefined || row['Nombre y Apellido'] !== undefined || row['Tipo O.S.'] !== undefined) {
+                    if (row['Nombre y Apellido'] || row['Número']) {
+                        const osId = String(row['Número'] || ('OS-' + (idx + 1)));
+                        if (tareasPool.some(t => t.id === osId)) return;
+
+                        const tipoOS = (row['Tipo O.S.'] && String(row['Tipo O.S.']).trim() !== '') ? String(row['Tipo O.S.']).trim() : 'Varios';
+
+                        tareasPool.push({
+                            id: osId,
+                            tipo: 'OS',
+                            motivoDetalle: tipoOS,
+                            tipoCompleto: 'OS - ' + tipoOS,
+                            cliente: row['Nombre y Apellido'] || 'Sin Nombre',
+                            direccion: (row['Domicilio'] || '') + (row['Localidad'] ? ' (' + row['Localidad'] + ')' : ''),
+                            descripcion: tipoOS + ' - ' + (row['Descripción'] || ''),
+                            asignadaA: null,
+                            estadoCierre: 'Pendiente',
+                            comentarioCierre: ''
+                        });
+                    }
+                }
+            });
+        }
+
+        function toggleFormularioManual() {
+            const form = document.getElementById('formManualContainer');
+            form.style.display = (form.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function guardarTareaManual() {
+            const cat = document.getElementById('manualTipoCat').value;
+            let id = document.getElementById('manualId').value.trim();
+            const motivoRaw = document.getElementById('manualMotivo').value.trim();
+            const motivo = motivoRaw !== '' ? motivoRaw : 'Varios';
+            const cliente = document.getElementById('manualCliente').value.trim() || 'Cliente Sin Especificar';
+            const direccion = document.getElementById('manualDireccion').value.trim() || 'Dirección Sin Especificar';
+            const descripcion = document.getElementById('manualDescripcion').value.trim() || 'Ingreso manual de tarea';
+
+            if (!id) {
+                contadorManual++;
+                id = 'MAN-' + contadorManual;
+            }
+
+            const tipoPrefix = cat === 'RECLAMO' ? 'Reclamo' : 'OS';
+
+            tareasPool.push({
+                id: id,
+                tipo: cat,
+                motivoDetalle: motivo,
+                tipoCompleto: `${tipoPrefix} - ${motivo}`,
+                cliente: cliente,
+                direccion: direccion,
+                descripcion: descripcion,
+                asignadaA: null,
+                estadoCierre: 'Pendiente',
+                comentarioCierre: ''
+            });
+
+            guardarEstadoEnStorage();
+
+            document.getElementById('manualId').value = '';
+            document.getElementById('manualMotivo').value = '';
+            document.getElementById('manualCliente').value = '';
+            document.getElementById('manualDireccion').value = '';
+            document.getElementById('manualDescripcion').value = '';
+
+            toggleFormularioManual();
+            renderTareasDropdown();
+        }
+
+        function renderTareasDropdown() {
+            const container = document.getElementById('contenedorMultiTareas');
+            const pendientes = tareasPool.filter(t => t.asignadaA === null);
+            document.getElementById('totalTareas').innerText = pendientes.length;
+
+            actualizarSelectCuadrillaLote();
+
+            if (pendientes.length === 0) {
+                container.innerHTML = '<p style="color:#64748b; font-size:0.85rem;">No hay tareas pendientes en el panel.</p>';
+                renderRendicionPorCuadrillas();
+                return;
+            }
+
+            const grupos = {};
+            pendientes.forEach(t => {
+                const grupoNombre = t.motivoDetalle || 'Varios';
+                if (!grupos[grupoNombre]) grupos[grupoNombre] = [];
+                grupos[grupoNombre].push(t);
+            });
+
+            let html = '';
+            for (const [grupoKey, items] of Object.entries(grupos)) {
+                html += `
+                    <div class="multi-task-group">
+                        <div class="multi-task-group-title">
+                            <span>📂 ${grupoKey} (${items.length})</span>
+                            <button class="btn-secondary" style="width:auto; padding:0 6px; font-size:0.7rem; margin:0;" onclick="marcarGrupo('${grupoKey}')">Marcar Grupo</button>
+                        </div>
+                `;
+                items.forEach(t => {
+                    html += `
+                        <label class="multi-task-item">
+                            <input type="checkbox" class="chk-task-item" data-grupo="${grupoKey}" value="${t.id}">
+                            <div>
+                                <strong>#${t.id} - ${t.cliente}</strong><br>
+                                <span style="color:#64748b;">${t.direccion}</span>
+                            </div>
+                        </label>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            container.innerHTML = html;
+            renderRendicionPorCuadrillas();
+        }
+
+        function toggleMarcarTodas() {
+            const checkboxes = document.querySelectorAll('.chk-task-item');
+            if (checkboxes.length === 0) return;
+            const alMenosUnoDesmarcado = Array.from(checkboxes).some(cb => !cb.checked);
+            checkboxes.forEach(cb => cb.checked = alMenosUnoDesmarcado);
+        }
+
+        function marcarGrupo(grupoNombre) {
+            const checkboxes = document.querySelectorAll(`.chk-task-item[data-grupo="${grupoNombre}"]`);
+            const alMenosUnoDesmarcado = Array.from(checkboxes).some(cb => !cb.checked);
+            checkboxes.forEach(cb => cb.checked = alMenosUnoDesmarcado);
+        }
+
+        function actualizarSelectCuadrillaLote() {
+            const select = document.getElementById('selectCuadrillaLote');
+            if (cuadrillas.length === 0) {
+                select.innerHTML = '<option value="">-- No hay cuadrillas creadas --</option>';
+                return;
+            }
+            select.innerHTML = '<option value="">-- Seleccionar Cuadrilla --</option>' +
+                cuadrillas.map(c => `<option value="${c.id}">${c.movil} (${c.operarios})</option>`).join('');
+        }
+
+        function asignarTareasSeleccionadas() {
+            const cuadrillaId = document.getElementById('selectCuadrillaLote').value;
+            if (!cuadrillaId) {
+                alert('Selecciona una cuadrilla para asignar las tareas.');
+                return;
+            }
+
+            const seleccionados = Array.from(document.querySelectorAll('.chk-task-item:checked')).map(cb => cb.value);
+            if (seleccionados.length === 0) {
+                alert('Marca al menos una tarea de la lista para asignar.');
+                return;
+            }
+
+            seleccionados.forEach(id => {
+                const t = tareasPool.find(x => x.id === id);
+                if (t) t.asignadaA = cuadrillaId;
+            });
+
+            guardarEstadoEnStorage();
+            renderTareasDropdown();
+        }
+
+        function desasignarTarea(tareaId) {
+            const tarea = tareasPool.find(t => t.id == tareaId);
+            if(tarea) {
+                tarea.asignadaA = null;
+                guardarEstadoEnStorage();
+                renderTareasDropdown();
+            }
+        }
+
+        function crearCuadrilla() {
+            const movilesSeleccionados = Array.from(document.querySelectorAll('.chk-movil-item:checked')).map(cb => cb.value);
+            const operariosSeleccionados = Array.from(document.querySelectorAll('.chk-operario-item:checked')).map(cb => cb.value);
+
+            if (movilesSeleccionados.length === 0) {
+                alert('Seleccione al menos una unidad/móvil.');
+                return;
+            }
+            if (operariosSeleccionados.length === 0) {
+                alert('Seleccione al menos un operario.');
+                return;
+            }
+
+            cuadrillas.push({
+                id: 'CUA-' + Date.now(),
+                movil: movilesSeleccionados.join(' + '),
+                operarios: operariosSeleccionados.join(', ')
+            });
+
+            guardarEstadoEnStorage();
+
+            document.querySelectorAll('.chk-movil-item:checked, .chk-operario-item:checked').forEach(cb => cb.checked = false);
+
+            renderTareasDropdown();
+        }
+
+        function renderRendicionPorCuadrillas() {
+            const container = document.getElementById('contenedorRendicionCuadrillas');
+
+            if (cuadrillas.length === 0) {
+                container.innerHTML = '<p style="color:#64748b; font-size:0.85rem;">No hay cuadrillas armadas para la jornada.</p>';
+                return;
+            }
+
+            container.innerHTML = cuadrillas.map(c => {
+                const tareasAsignadas = tareasPool.filter(t => t.asignadaA === c.id);
+
+                return `
+                    <div class="cuadrilla-rendicion-card">
+                        <div class="cuadrilla-header">
+                            <div>
+                                <strong style="font-size: 0.95rem; color: #1e293b;">VF Móvil(es): ${c.movil}</strong>
+                                <span style="margin-left: 15px; font-size: 0.85rem; color: #475569;">👥 <strong>Operarios:</strong> ${c.operarios}</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span class="badge">${tareasAsignadas.length} Tareas</span>
+                                <button class="btn-secondary" style="width:auto; padding:3px 10px; font-size:0.75rem; margin:0;" onclick="imprimirPlanillaCuadrilla('${c.id}')">📄 Parte Diario (PDF)</button>
+                                <button class="btn-danger" style="width:auto; padding:3px 10px; font-size:0.75rem; margin:0;" onclick="eliminarCuadrilla('${c.id}')">Desarmar Grupo</button>
+                            </div>
+                        </div>
+
+                        ${tareasAsignadas.length === 0 ? `
+                            <p style="color:#94a3b8; font-size:0.85rem; margin: 5px 0;">No hay tareas asignadas a este grupo.</p>
+                        ` : `
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 110px; text-align: center;">N° Servicio</th>
+                                        <th style="width: 200px;">Tipo de Trabajo</th>
+                                        <th>Cliente</th>
+                                        <th>Domicilio</th>
+                                        <th style="width: 130px; text-align: center;">Estado Cierre</th>
+                                        <th>Comentario de Cierre</th>
+                                        <th style="width: 40px; text-align: center;">Quitar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${tareasAsignadas.map(t => `
+                                        <tr>
+                                            <td style="text-align: center;"><strong>#${t.id}</strong></td>
+                                            <td><span class="badge ${t.tipo}">${t.tipoCompleto}</span></td>
+                                            <td><strong>${t.cliente}</strong></td>
+                                            <td>${t.direccion}</td>
+                                            <td style="text-align: center;">
+                                                <select style="margin:0; font-weight:bold; color: ${t.estadoCierre === 'Completada' ? '#059669' : '#d97706'};" onchange="actualizarEstado('${t.id}', this.value)">
+                                                    <option value="Pendiente" ${t.estadoCierre === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                                                    <option value="Completada" ${t.estadoCierre === 'Completada' ? 'selected' : ''}>Completada</option>
+                                                    <option value="Reprogramada" ${t.estadoCierre === 'Reprogramada' ? 'selected' : ''}>Reprogramada</option>
+                                                    <option value="Cancelada" ${t.estadoCierre === 'Cancelada' ? 'selected' : ''}>Cancelada</option>
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <input type="text" style="margin:0;" placeholder="Observaciones de cierre..." 
+                                                       value="${t.comentarioCierre}" 
+                                                       onchange="actualizarComentario('${t.id}', this.value)">
+                                            </td>
+                                            <td style="text-align: center;">
+                                                <button class="btn-danger" style="width:auto; padding:2px 8px; font-size:0.8rem; margin:0;" onclick="desasignarTarea('${t.id}')">✕</button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        `}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /* --- GENERACIÓN DE PDF --- */
+        function imprimirPlanillaCuadrilla(cuadrillaId) {
+            const cuadrilla = cuadrillas.find(c => c.id === cuadrillaId);
+            if (!cuadrilla) return;
+
+            const tareas = tareasPool.filter(t => t.asignadaA === cuadrillaId);
+            if (tareas.length === 0) {
+                alert('La cuadrilla no tiene tareas asignadas para generar la planilla PDF.');
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                const fechaHoy = new Date().toLocaleDateString('es-AR');
+
+                // Header Principal
+                doc.setFillColor(31, 45, 61);
+                doc.rect(0, 0, 210, 22, 'F');
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text('PARTE DIARIO DE TRABAJO EN CAMPO', 10, 10);
+                
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Fecha: ${fechaHoy}`, 190, 10, { align: 'right' });
+                doc.text('Parte Diario de Tareas — Sistema de Gestión Operativa', 10, 17);
+
+                // Información de Cuadrilla
+                doc.setFillColor(241, 245, 249);
+                doc.rect(10, 26, 190, 18, 'F');
+                doc.setDrawColor(203, 213, 225);
+                doc.rect(10, 26, 190, 18, 'S');
+
+                doc.setTextColor(15, 23, 42);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Móvil / Unidad: `, 13, 32);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`${cuadrilla.movil}`, 38, 32);
+
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Operarios: `, 13, 39);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`${cuadrilla.operarios}`, 31, 39);
+
+                // Tabla de Tareas
+                const tableData = tareas.map((t, idx) => [
+                    (idx + 1).toString(),
+                    t.id,
+                    t.tipoCompleto,
+                    t.cliente,
+                    t.direccion,
+                    '' 
+                ]);
+
+                doc.autoTable({
+                    startY: 48,
+                    head: [['N°', 'Servicio', 'Tipo / Motivo', 'Cliente', 'Domicilio', 'Firma / Conformidad']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [31, 45, 61],
+                        textColor: [255, 255, 255],
+                        fontSize: 8,
+                        fontStyle: 'bold',
+                        halign: 'center'
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 8, halign: 'center' },
+                        1: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+                        2: { cellWidth: 38 },
+                        3: { cellWidth: 42, fontStyle: 'bold' },
+                        4: { cellWidth: 50 },
+                        5: { cellWidth: 34 }
+                    },
+                    styles: {
+                        fontSize: 8,
+                        cellPadding: 3,
+                        verticalAlign: 'middle'
+                    },
+                    alternateRowStyles: {
+                        fillColor: [248, 250, 252]
+                    }
+                });
+
+                // Firmas al pie
+                const finalY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 100) + 25;
+                
+                doc.setDrawColor(148, 163, 184);
+                doc.line(20, finalY, 80, finalY);
+                doc.line(130, finalY, 190, finalY);
+
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Firma Responsable Cuadrilla', 50, finalY + 5, { align: 'center' });
+                doc.text('Firma / Sello Supervisor Campo', 160, finalY + 5, { align: 'center' });
+
+                const movilLimpio = cuadrilla.movil.replace(/[^a-zA-Z0-9]/g, '_');
+                doc.save(`Parte_Diario_Cuadrilla_${movilLimpio}.pdf`);
+            } catch (e) {
+                alert('Ocurrió un error al generar el PDF: ' + e.message);
+                console.error(e);
+            }
+        }
+
+        function eliminarCuadrilla(cuadrillaId) {
+            if (confirm('¿Desarmar este grupo de trabajo? Las tareas asignadas volverán a estar pendientes.')) {
+                tareasPool.forEach(t => {
+                    if (t.asignadaA === cuadrillaId) t.asignadaA = null;
+                });
+                cuadrillas = cuadrillas.filter(c => c.id !== cuadrillaId);
+                guardarEstadoEnStorage();
+                renderTareasDropdown();
+            }
+        }
+
+        function actualizarEstado(id, valor) {
+            const tarea = tareasPool.find(t => t.id == id);
+            if(tarea) {
+                tarea.estadoCierre = valor;
+                guardarEstadoEnStorage();
+                renderRendicionPorCuadrillas();
+            }
+        }
+
+        function actualizarComentario(id, valor) {
+            const tarea = tareasPool.find(t => t.id == id);
+            if(tarea) {
+                tarea.comentarioCierre = valor;
+                guardarEstadoEnStorage();
+            }
+        }
+
+        async function confirmarNuevoParte() {
+            if (tareasPool.length === 0 && cuadrillas.length === 0) {
+                alert("No existen datos cargados en el parte actual.");
+                return;
+            }
+
+            const desicion = confirm(
+                "⚠️ ¿Deseas iniciar un 'Nuevo Parte'?\n\n" +
+                "1. Se descargará una COPIA LOCAL de respaldo de la rendición actual en formato .xlsx.\n" +
+                "2. Se borrarán las cuadrillas y tareas del panel para iniciar una nueva jornada."
+            );
+
+            if (desicion) {
+                await exportarJornadaEstilizada();
+                
+                tareasPool = [];
+                cuadrillas = [];
+                localStorage.removeItem('cuadrillaops_tareasPool');
+                localStorage.removeItem('cuadrillaops_cuadrillas');
+                
+                renderTareasDropdown();
+                renderRendicionPorCuadrillas();
+                alert("✅ Se ha realizado la copia de respaldo local y se ha iniciado un Nuevo Parte.");
+            }
+        }
+
+        function abrirModalConfig() {
+            document.getElementById('modalConfig').style.display = 'flex';
+            renderListasConfig();
+        }
+
+        function cerrarModalConfig() {
+            document.getElementById('modalConfig').style.display = 'none';
+        }
+
+        function agregarMovil() {
+            const val = document.getElementById('nuevoMovilInput').value.trim();
+            if(val) {
+                unidadesBase.push(val);
+                localStorage.setItem('cuadrillaops_unidades', JSON.stringify(unidadesBase));
+                document.getElementById('nuevoMovilInput').value = '';
+                renderListasConfig();
+                actualizarSelectoresForm();
+            }
+        }
+
+        function eliminarMovil(index) {
+            unidadesBase.splice(index, 1);
+            localStorage.setItem('cuadrillaops_unidades', JSON.stringify(unidadesBase));
+            renderListasConfig();
+            actualizarSelectoresForm();
+        }
+
+        function agregarOperario() {
+            const val = document.getElementById('nuevoOperarioInput').value.trim();
+            if(val) {
+                operariosBase.push(val);
+                localStorage.setItem('cuadrillaops_operarios', JSON.stringify(operariosBase));
+                document.getElementById('nuevoOperarioInput').value = '';
+                renderListasConfig();
+                actualizarSelectoresForm();
+            }
+        }
+
+        function eliminarOperario(index) {
+            operariosBase.splice(index, 1);
+            localStorage.setItem('cuadrillaops_operarios', JSON.stringify(operariosBase));
+            renderListasConfig();
+            actualizarSelectoresForm();
+        }
+
+        function renderListasConfig() {
+            const divMoviles = document.getElementById('listaMovilesConfig');
+            divMoviles.innerHTML = unidadesBase.map((m, i) => `
+                <div class="list-item">
+                    <span>${m}</span>
+                    <button class="btn-danger" style="width:auto; padding:2px 8px;" onclick="eliminarMovil(${i})">Eliminar</button>
+                </div>
+            `).join('');
+
+            const divOperarios = document.getElementById('listaOperariosConfig');
+            divOperarios.innerHTML = operariosBase.map((o, i) => `
+                <div class="list-item">
+                    <span>${o}</span>
+                    <button class="btn-danger" style="width:auto; padding:2px 8px;" onclick="eliminarOperario(${i})">Eliminar</button>
+                </div>
+            `).join('');
+        }
+
+        function actualizarSelectoresForm() {
+            const containerMovil = document.getElementById('containerCheckMovil');
+            containerMovil.innerHTML = unidadesBase.map(m => `
+                <label class="checkbox-item">
+                    <input type="checkbox" class="chk-movil-item" value="${m}">
+                    <span>${m}</span>
+                </label>
+            `).join('');
+
+            const containerOperarios = document.getElementById('containerCheckOperarios');
+            containerOperarios.innerHTML = operariosBase.map(o => `
+                <label class="checkbox-item">
+                    <input type="checkbox" class="chk-operario-item" value="${o}">
+                    <span>${o}</span>
+                </label>
+            `).join('');
+        }
+
+        async function exportarJornadaEstilizada() {
+            if (cuadrillas.length === 0 && tareasPool.length === 0) {
+                alert('⚠️ No hay datos para exportar.');
+                return;
+            }
+
+            if (typeof ExcelJS === 'undefined') {
+                exportarFallbackSheetJS();
+                return;
+            }
+
+            try {
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet('Rendición de Jornada');
+
+                worksheet.views = [{ showGridLines: true }];
+
+                worksheet.columns = [
+                    { key: 'colA', width: 3 },
+                    { key: 'colB', width: 18 },
+                    { key: 'colC', width: 30 },
+                    { key: 'colD', width: 35 },
+                    { key: 'colE', width: 45 },
+                    { key: 'colF', width: 18 },
+                    { key: 'colG', width: 50 }
+                ];
+
+                const rTitle = worksheet.getRow(2);
+                rTitle.getCell('B').value = 'Parte Diario de Tareas — Rendición y Cierre de Jornada';
+                rTitle.getCell('B').font = { name: 'Segoe UI', size: 16, bold: true, color: { argb: 'FF1F2D3D' } };
+
+                const rSub = worksheet.getRow(3);
+                rSub.getCell('B').value = 'Reporte diario de tareas asignadas y estado de cierre por cuadrilla';
+                rSub.getCell('B').font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: 'FF64748B' } };
+
+                let currentRow = 5;
+
+                const borderThin = {
+                    top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                };
+
+                const cuadrillasAProcesar = cuadrillas.length > 0 ? cuadrillas : [{ id: 'S_A', movil: 'Sin Asignar', operarios: 'N/A' }];
+
+                for (const c of cuadrillasAProcesar) {
+                    const tareasAsignadas = c.id === 'S_A' ? tareasPool : tareasPool.filter(t => t.asignadaA === c.id);
+
+                    worksheet.mergeCells(`B${currentRow}:G${currentRow}`);
+                    const bannerCell = worksheet.getCell(`B${currentRow}`);
+                    bannerCell.value = `VF Móvil: ${c.movil}   |   👥 Operarios: ${c.operarios}`;
+                    bannerCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF1F2D3D' } };
+                    bannerCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDF2F7' } };
+                    bannerCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+                    worksheet.getRow(currentRow).height = 25;
+
+                    for (let col = 2; col <= 7; col++) {
+                        const cell = worksheet.getRow(currentRow).getCell(col);
+                        cell.border = borderThin;
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDF2F7' } };
+                    }
+
+                    currentRow++;
+
+                    const headers = ['N° Servicio', 'Tipo de Trabajo', 'Cliente', 'Domicilio', 'Estado Cierre', 'Comentario de Cierre'];
+                    const hRow = worksheet.getRow(currentRow);
+                    hRow.height = 22;
+
+                    headers.forEach((hText, i) => {
+                        const colIdx = i + 2;
+                        const cell = hRow.getCell(colIdx);
+                        cell.value = hText;
+                        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F2D3D' } };
+                        cell.border = borderThin;
+                        cell.alignment = ['N° Servicio', 'Estado Cierre'].includes(hText)
+                            ? { horizontal: 'center', vertical: 'middle' }
+                            : { horizontal: 'left', vertical: 'middle' };
+                    });
+
+                    currentRow++;
+
+                    if (tareasAsignadas.length === 0) {
+                        worksheet.mergeCells(`B${currentRow}:G${currentRow}`);
+                        const emptyCell = worksheet.getCell(`B${currentRow}`);
+                        emptyCell.value = 'No hay tareas asignadas';
+                        emptyCell.font = { name: 'Segoe UI', size: 9, italic: true, color: { argb: 'FF94A3B8' } };
+                        emptyCell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        currentRow++;
+                    } else {
+                        tareasAsignadas.forEach((t, idx) => {
+                            const row = worksheet.getRow(currentRow);
+                            row.height = 20;
+                            const isZebra = idx % 2 === 1;
+
+                            const cId = row.getCell('B');
+                            cId.value = t.id;
+                            cId.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+                            cId.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                            const cTipo = row.getCell('C');
+                            cTipo.value = t.tipoCompleto;
+                            cTipo.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: t.tipo === 'RECLAMO' ? 'FFDC2626' : 'FF7C3AED' } };
+
+                            const cCli = row.getCell('D');
+                            cCli.value = t.cliente;
+                            cCli.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF0F172A' } };
+
+                            const cDom = row.getCell('E');
+                            cDom.value = t.direccion;
+                            cDom.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF0F172A' } };
+
+                            const cEst = row.getCell('F');
+                            cEst.value = t.estadoCierre;
+                            cEst.alignment = { horizontal: 'center', vertical: 'middle' };
+                            if (t.estadoCierre === 'Completada') {
+                                cEst.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF059669' } };
+                                cEst.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+                            } else {
+                                cEst.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFD97706' } };
+                                cEst.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+                            }
+
+                            const cCom = row.getCell('G');
+                            cCom.value = t.comentarioCierre || '';
+                            cCom.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF0F172A' } };
+
+                            for (let col = 2; col <= 7; col++) {
+                                const cell = row.getCell(col);
+                                cell.border = borderThin;
+                                if (col !== 6 && isZebra) {
+                                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+                                }
+                            }
+                            currentRow++;
+                        });
+                    }
+                    currentRow++;
+                }
+
+                const buffer = await workbook.xlsx.writeBuffer();
+                descargarBlob(buffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            } catch (err) {
+                console.error(err);
+                exportarFallbackSheetJS();
+            }
+        }
+
+        function exportarFallbackSheetJS() {
+            const filas = [];
+            cuadrillas.forEach(c => {
+                const tareas = tareasPool.filter(t => t.asignadaA === c.id);
+                filas.push({ "Móvil / Operarios": `VF Móvil: ${c.movil} | 👥 ${c.operarios}` });
+                
+                if (tareas.length === 0) {
+                    filas.push({ "N° Servicio": "-", "Tipo de Trabajo": "-", "Cliente": "Sin tareas asignadas", "Domicilio": "-", "Estado Cierre": "-", "Comentario": "-" });
+                } else {
+                    tareas.forEach(t => {
+                        filas.push({
+                            "N° Servicio": t.id,
+                            "Tipo de Trabajo": t.tipoCompleto,
+                            "Cliente": t.cliente,
+                            "Domicilio": t.direccion,
+                            "Estado Cierre": t.estadoCierre,
+                            "Comentario": t.comentarioCierre || ""
+                        });
+                    });
+                }
+                filas.push({});
+            });
+
+            const ws = XLSX.utils.json_to_sheet(filas);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Rendición");
+            const fecha = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, `Rendicion_Jornada_${fecha}.xlsx`);
+        }
+
+        function descargarBlob(buffer, mimeType) {
+            const blob = new Blob([buffer], { type: mimeType });
+            const link = document.createElement('a');
+            const fecha = new Date().toISOString().slice(0, 10);
+            link.href = URL.createObjectURL(blob);
+            link.download = `Rendicion_y_Cierre_de_Jornada_${fecha}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+    </script>
+</body>
+</html>
